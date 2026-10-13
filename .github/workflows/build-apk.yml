@@ -1,0 +1,102 @@
+name: Compilar APK
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: build-apk
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+
+      # ---------- base nutricional (USDA SR Legacy → SQLite)
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Cache de datos USDA
+        uses: actions/cache@v4
+        with:
+          path: tools/_cache
+          key: usda-sr-legacy-2018-04
+
+      - name: Generar nutrition.db
+        run: |
+          pip install pandas
+          python tools/build_nutrition_db.py
+
+      # ---------- Flutter
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Generar proyecto Android
+        run: |
+          flutter --version
+          flutter create --org ar.majestad --project-name recetas_app --platforms android .
+          rm -f test/widget_test.dart
+          sed -i 's/android:label="recetas_app"/android:label="Recetas"/' android/app/src/main/AndroidManifest.xml
+
+      - name: Dependencias
+        run: flutter pub get
+
+      - name: Análisis estático
+        run: flutter analyze --no-fatal-infos --no-fatal-warnings
+
+      - name: Tests del motor de cálculo
+        run: flutter test
+
+      - name: Clave de firma fija (permite actualizar sin desinstalar)
+        run: |
+          mkdir -p ~/.android
+          cp ci/debug.keystore ~/.android/debug.keystore
+
+      - name: Compilar APK
+        run: >
+          flutter build apk --release --split-per-abi
+          --build-name=0.1.${{ github.run_number }}
+          --build-number=${{ github.run_number }}
+
+      - name: Preparar archivos
+        run: |
+          mkdir -p dist
+          cp build/app/outputs/flutter-apk/app-arm64-v8a-release.apk dist/recetas-arm64.apk
+          cp build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk dist/recetas-armv7.apk
+          ls -la dist
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: recetas-apk-${{ github.run_number }}
+          path: dist/*.apk
+
+      - name: Publicar release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v0.1.${{ github.run_number }}
+          name: Recetas 0.1.${{ github.run_number }}
+          make_latest: true
+          files: dist/*.apk
+          body: |
+            Compilado desde ${{ github.sha }}.
+
+            - **recetas-arm64.apk**: para casi cualquier teléfono actual.
+            - **recetas-armv7.apk**: solo para teléfonos viejos de 32 bits.
+
+            Enlace fijo a la última versión:
+            https://github.com/${{ github.repository }}/releases/latest/download/recetas-arm64.apk

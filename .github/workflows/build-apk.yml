@@ -67,11 +67,6 @@ jobs:
       - name: Tests del motor de cálculo
         run: flutter test
 
-      - name: Clave de firma fija (permite actualizar sin desinstalar)
-        run: |
-          mkdir -p ~/.android
-          cp ci/debug.keystore ~/.android/debug.keystore
-
       - name: Compilar APK
         shell: bash
         run: |
@@ -90,8 +85,20 @@ jobs:
       - name: Preparar archivos
         run: |
           mkdir -p dist
-          cp build/app/outputs/flutter-apk/app-arm64-v8a-release.apk dist/recetas-arm64.apk
-          cp build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk dist/recetas-armv7.apk
+          # Firma con la clave fija del repo: así cada versión se instala encima
+          # de la anterior. Falla si la huella no es la esperada.
+          EXPECTED=76c8a86d68cf0d0cba57695a26ed31406e8104614adb7dcc41b5bcccb2b5b5ac
+          BT=$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)
+          for pair in arm64-v8a:arm64 armeabi-v7a:armv7; do
+            src=build/app/outputs/flutter-apk/app-${pair%%:*}-release.apk
+            out=dist/recetas-${pair##*:}.apk
+            "$BT/apksigner" sign --ks ci/debug.keystore --ks-pass pass:android \
+              --ks-key-alias androiddebugkey --key-pass pass:android --out "$out" "$src"
+            "$BT/apksigner" verify --print-certs "$out" | tee cert.txt
+            grep -qi "SHA-256 digest: $EXPECTED" cert.txt || {
+              echo "::error title=firma::$out no quedó firmado con la clave fija"; exit 1; }
+          done
+          rm -f dist/*.idsig
           ls -la dist
           {
             git log -1 --format=%s

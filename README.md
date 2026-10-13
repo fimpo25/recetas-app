@@ -7,7 +7,7 @@ App Android (Flutter, offline) para registrar recetas, armar el plan semanal de 
 Última versión para el teléfono:
 **https://github.com/fimpo25/recetas-app/releases/latest/download/recetas-arm64.apk**
 
-Abrilo desde el teléfono y permití "Instalar apps desconocidas" para el navegador la primera vez. Las versiones nuevas se instalan encima sin perder datos (todas se firman con la misma clave).
+Abrilo desde el teléfono y permití "Instalar apps desconocidas" para el navegador la primera vez. Las versiones nuevas se instalan encima sin perder datos (todas se firman con la misma clave desde la v0.1.5).
 
 ## Cómo se compila
 

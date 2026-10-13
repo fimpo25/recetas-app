@@ -6,7 +6,9 @@ import '../../data/repo.dart';
 import '../../domain/models.dart';
 import '../../domain/targets.dart';
 import '../../domain/text.dart';
+import '../../data/updater.dart';
 import 'custom_food_page.dart';
+import 'update_page.dart';
 
 class SettingsPage extends StatelessWidget {
   const SettingsPage({super.key});
@@ -42,6 +44,12 @@ class SettingsPage extends StatelessWidget {
             title: const Text('Respaldo'),
             subtitle: const Text('Exportar o importar todos tus datos'),
             onTap: () => go(const BackupPage()),
+          ),
+          ListTile(
+            leading: const Icon(Icons.system_update_outlined),
+            title: const Text('Buscar actualización'),
+            subtitle: Text('Versión instalada: $appVersion'),
+            onTap: () => go(const UpdatePage()),
           ),
           const Divider(),
           const ListTile(

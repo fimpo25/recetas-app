@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:recetas_app/data/updater.dart';
 import 'package:recetas_app/domain/nutrition_calc.dart';
 import 'package:recetas_app/domain/shopping_list.dart';
 import 'package:recetas_app/domain/targets.dart';
@@ -110,6 +111,19 @@ void main() {
       expect(weekStartOf(DateTime(2026, 10, 15)), '2026-10-12');
       expect(shiftWeek('2026-10-12', 1), '2026-10-19');
       expect(shiftWeek('2026-12-28', 1), '2027-01-04');
+    });
+  });
+
+  group('Actualizaciones', () {
+    test('número de compilación desde el tag', () {
+      expect(buildFromTag('v0.1.12'), 12);
+      expect(buildFromTag('v0.1.3'), 3);
+      expect(buildFromTag('basura'), 0);
+    });
+    test('novedades = primer párrafo del release', () {
+      expect(notesFromBody('Categorías de receta\n\nCompilado desde abc.'),
+          'Categorías de receta');
+      expect(notesFromBody('Compilado desde abc.\n\n- algo'), '');
     });
   });
 }

@@ -51,7 +51,12 @@ jobs:
           flutter --version
           flutter create --org ar.majestad --project-name recetas_app --platforms android .
           rm -f test/widget_test.dart
-          sed -i 's/android:label="recetas_app"/android:label="Recetas"/' android/app/src/main/AndroidManifest.xml
+          M=android/app/src/main/AndroidManifest.xml
+          sed -i 's/android:label="recetas_app"/android:label="Recetas"/' $M
+          # Internet para buscar actualizaciones en GitHub
+          grep -q 'android.permission.INTERNET' $M || \
+            sed -i '0,/<application/s//<uses-permission android:name="android.permission.INTERNET"\/>\n    <application/' $M
+          grep -n "INTERNET\|label" $M
 
       - name: Dependencias
         run: flutter pub get
@@ -73,7 +78,9 @@ jobs:
           set -o pipefail
           flutter build apk --release --split-per-abi \
             --build-name=0.1.${{ github.run_number }} \
-            --build-number=${{ github.run_number }} 2>&1 | tee build.log || {
+            --build-number=${{ github.run_number }} \
+            --dart-define=BUILD_NUMBER=${{ github.run_number }} \
+            --dart-define=BUILD_NAME=0.1.${{ github.run_number }} 2>&1 | tee build.log || {
             # Publica el final del log como anotación (legible desde la API).
             msg=$(grep -aE "error|Error|FAILURE|What went wrong|Exception|>" build.log | tail -60 | sed 's/%/%25/g' | awk '{printf "%s%%0A", $0}')
             echo "::error title=flutter build apk::${msg}"
@@ -86,6 +93,17 @@ jobs:
           cp build/app/outputs/flutter-apk/app-arm64-v8a-release.apk dist/recetas-arm64.apk
           cp build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk dist/recetas-armv7.apk
           ls -la dist
+          {
+            git log -1 --format=%s
+            echo
+            echo "Compilado desde ${{ github.sha }}."
+            echo
+            echo "- **recetas-arm64.apk**: para casi cualquier teléfono actual."
+            echo "- **recetas-armv7.apk**: solo para teléfonos viejos de 32 bits."
+            echo
+            echo "Enlace fijo a la última versión:"
+            echo "https://github.com/${{ github.repository }}/releases/latest/download/recetas-arm64.apk"
+          } > dist/notes.md
 
       - uses: actions/upload-artifact@v4
         with:
@@ -99,11 +117,4 @@ jobs:
           name: Recetas 0.1.${{ github.run_number }}
           make_latest: true
           files: dist/*.apk
-          body: |
-            Compilado desde ${{ github.sha }}.
-
-            - **recetas-arm64.apk**: para casi cualquier teléfono actual.
-            - **recetas-armv7.apk**: solo para teléfonos viejos de 32 bits.
-
-            Enlace fijo a la última versión:
-            https://github.com/${{ github.repository }}/releases/latest/download/recetas-arm64.apk
+          body_path: dist/notes.md

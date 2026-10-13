@@ -5,6 +5,7 @@ import 'features/nutrition/nutrition_page.dart';
 import 'features/plan/plan_page.dart';
 import 'features/recipes/recipes_page.dart';
 import 'features/settings/settings_page.dart';
+import 'features/settings/update_page.dart';
 import 'features/shopping/shopping_page.dart';
 
 void main() {
@@ -80,6 +81,14 @@ class HomeShell extends StatefulWidget {
 
 class _HomeShellState extends State<HomeShell> {
   int _index = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) autoCheckForUpdate(context);
+    });
+  }
 
   @override
   Widget build(BuildContext context) {

@@ -36,7 +36,7 @@ jobs:
           python tools/build_nutrition_db.py
 
       # ---------- Flutter
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: "17"
@@ -68,10 +68,17 @@ jobs:
           cp ci/debug.keystore ~/.android/debug.keystore
 
       - name: Compilar APK
-        run: >
-          flutter build apk --release --split-per-abi
-          --build-name=0.1.${{ github.run_number }}
-          --build-number=${{ github.run_number }}
+        shell: bash
+        run: |
+          set -o pipefail
+          flutter build apk --release --split-per-abi \
+            --build-name=0.1.${{ github.run_number }} \
+            --build-number=${{ github.run_number }} 2>&1 | tee build.log || {
+            # Publica el final del log como anotación (legible desde la API).
+            msg=$(grep -aE "error|Error|FAILURE|What went wrong|Exception|>" build.log | tail -60 | sed 's/%/%25/g' | awk '{printf "%s%%0A", $0}')
+            echo "::error title=flutter build apk::${msg}"
+            exit 1
+          }
 
       - name: Preparar archivos
         run: |

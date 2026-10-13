@@ -2,6 +2,9 @@
 ///
 /// Unidades fijas: g, kg, ml, l, cdita (5 ml), cda (15 ml), taza (250 ml).
 /// Porciones caseras del alimento: 'p:<etiqueta>|<gramos>'.
+library;
+
+import 'text.dart';
 
 const Map<String, double> massUnits = {'g': 1, 'kg': 1000};
 const Map<String, double> volumeUnitsMl = {
@@ -52,4 +55,11 @@ double? toGrams({
   final pg = portionGrams(unit);
   if (pg != null) return qty * pg;
   return null;
+}
+
+/// Cantidad + unidad para mostrar. Una porción de 0 g con cantidad 0
+/// (p. ej. 'p:a gusto|0') se muestra solo con su etiqueta.
+String qtyLabel(double qty, String unit) {
+  if (qty == 0 && (portionGrams(unit) ?? -1) == 0) return unitLabel(unit);
+  return '${fmtNum(qty, decimals: 2)} ${unitLabel(unit)}';
 }

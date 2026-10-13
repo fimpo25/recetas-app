@@ -4,6 +4,7 @@ import 'package:sqflite/sqflite.dart';
 
 import '../domain/models.dart';
 import '../domain/nutrition_calc.dart';
+import '../domain/recipe_pack.dart';
 import '../domain/shopping_list.dart';
 import '../domain/targets.dart';
 import '../domain/text.dart';
@@ -596,6 +597,91 @@ class Repo {
         }
       }
     });
+  }
+
+  /// Agrega las recetas de un recetario (.json). No borra nada: las recetas
+  /// cuyo nombre ya existe se saltean y los alimentos propios se reutilizan
+  /// por nombre. Devuelve (agregadas, salteadas).
+  Future<(int, int)> importRecipePack(String json) async {
+    final pack = parseRecipePack(json);
+    final codeToId = {for (final n in await nutrients()) n.code: n.id};
+    var added = 0;
+    var skipped = 0;
+    await _user.transaction((txn) async {
+      // alimentos propios del paquete
+      final keyToId = <String, int>{};
+      final existing = await txn.query('custom_food', columns: ['id', 'name']);
+      final byName = {
+        for (final r in existing) recipeNameKey(_s(r['name'])): _i(r['id'])
+      };
+      final maxRow = await txn.rawQuery('SELECT MAX(id) AS m FROM custom_food');
+      var next = (_iN(maxRow.first['m']) ?? (customFoodBaseId - 1)) + 1;
+      if (next < customFoodBaseId) next = customFoodBaseId;
+      for (final f in pack.foods) {
+        final found = byName[recipeNameKey(f.name)];
+        if (found != null) {
+          keyToId[f.key] = found;
+          continue;
+        }
+        final id = next++;
+        await txn.insert('custom_food', {
+          'id': id,
+          'name': f.name,
+          'category': f.category,
+          'density': f.density > 0 ? f.density : 1.0,
+          'edible': 1.0,
+          'search_text': normalize(f.name),
+        });
+        for (final e in f.nutrients.entries) {
+          final nid = codeToId[e.key];
+          if (nid == null) continue;
+          await txn.insert('custom_food_nutrient',
+              {'food_id': id, 'nutrient_id': nid, 'per_100g': e.value});
+        }
+        keyToId[f.key] = id;
+        byName[recipeNameKey(f.name)] = id;
+      }
+      // recetas
+      final names = (await txn.query('recipe', columns: ['name']))
+          .map((r) => recipeNameKey(_s(r['name'])))
+          .toSet();
+      final now = DateTime.now().millisecondsSinceEpoch;
+      for (final pr in pack.recipes) {
+        final r = pr.recipe;
+        if (!names.add(recipeNameKey(r.name))) {
+          skipped++;
+          continue;
+        }
+        final rid = await txn.insert('recipe', {
+          'name': r.name,
+          'servings': r.servings,
+          'prep_min': r.prepMin,
+          'cook_min': r.cookMin,
+          'instructions': r.instructions,
+          'tags': r.tags,
+          'category': r.category,
+          'created_at': now,
+          'updated_at': now,
+        });
+        var order = 0;
+        for (final i in pr.ingredients) {
+          final fid = i.foodId ?? keyToId[i.foodKey];
+          if (fid == null) continue;
+          await txn.insert('recipe_ingredient', {
+            'recipe_id': rid,
+            'food_id': fid,
+            'food_name': i.foodName,
+            'qty': i.qty,
+            'unit': i.unit,
+            'grams': i.grams,
+            'note': i.note,
+            'sort_order': order++,
+          });
+        }
+        added++;
+      }
+    });
+    return (added, skipped);
   }
 
   // ---------------------------------------------------------------- helpers

@@ -217,7 +217,7 @@ class _RecipeEditPageState extends State<RecipeEditPage> {
                     ),
                     title: Text(_ingredients[i].foodName),
                     subtitle: Text(
-                      '${fmtNum(_ingredients[i].qty, decimals: 2)} ${unitLabel(_ingredients[i].unit)}'
+                      '${qtyLabel(_ingredients[i].qty, _ingredients[i].unit)}'
                       ' · ${fmtGrams(_ingredients[i].grams)}'
                       '${_ingredients[i].note.isEmpty ? '' : ' · ${_ingredients[i].note}'}',
                     ),

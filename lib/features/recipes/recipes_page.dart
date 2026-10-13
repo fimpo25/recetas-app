@@ -4,6 +4,7 @@ import '../../common/widgets.dart';
 import '../../data/repo.dart';
 import '../../domain/models.dart';
 import '../../domain/text.dart';
+import '../settings/import_pack.dart';
 import 'recipe_detail_page.dart';
 import 'recipe_edit_page.dart';
 
@@ -66,7 +67,18 @@ class _RecipesPageState extends State<RecipesPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Recetas')),
+      appBar: AppBar(
+        title: const Text('Recetas'),
+        actions: [
+          IconButton(
+            tooltip: 'Importar recetario (.json)',
+            icon: const Icon(Icons.library_add_outlined),
+            onPressed: () async {
+              if (await importRecipePackFlow(context)) _load();
+            },
+          ),
+        ],
+      ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _new,
         icon: const Icon(Icons.add),
@@ -107,7 +119,7 @@ class _RecipesPageState extends State<RecipesPage> {
                         icon: Icons.menu_book_outlined,
                         text: (_category != null || _query.trim().isNotEmpty)
                             ? 'No hay recetas que coincidan con el filtro.'
-                            : 'Todavía no hay recetas. Tocá "Nueva receta" para cargar la primera.',
+                            : 'Todavía no hay recetas. Tocá "Nueva receta" para cargar la primera, o importá un recetario con el botón de arriba.',
                       )
                     : ListView.builder(
                         padding: const EdgeInsets.only(bottom: 88),

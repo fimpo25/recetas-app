@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:recetas_app/data/updater.dart';
 import 'package:recetas_app/domain/nutrition_calc.dart';
+import 'package:recetas_app/domain/recipe_pack.dart';
 import 'package:recetas_app/domain/shopping_list.dart';
 import 'package:recetas_app/domain/targets.dart';
 import 'package:recetas_app/domain/text.dart';
@@ -124,6 +125,61 @@ void main() {
       expect(notesFromBody('Categorías de receta\n\nCompilado desde abc.'),
           'Categorías de receta');
       expect(notesFromBody('Compilado desde abc.\n\n- algo'), '');
+    });
+  });
+
+  group('Recetario importable', () {
+    const pack = '''
+{
+  "app": "recetas_app", "kind": "recipe_pack", "format": 1, "title": "Prueba",
+  "foods": [{"key": "c:eri", "name": "Eritritol", "category": "Almacén",
+             "density": 0.8, "nutrients": {"energy_kcal": 20}}],
+  "recipes": [
+    {"name": "Budín", "category": "Merienda / snack", "servings": 10, "prep_min": 45,
+     "instructions": "Mezclar y hornear.", "tags": "budines",
+     "ingredients": [
+       {"food_id": 168893, "food_name": "Harina integral", "qty": 2, "unit": "taza", "grams": 240, "note": "2 tazas (240g)"},
+       {"food_key": "c:eri", "food_name": "Eritritol", "qty": 40, "unit": "g", "grams": 40, "note": ""},
+       {"food_key": "c:no-existe", "food_name": "X", "qty": 1, "unit": "g", "grams": 1, "note": ""},
+       {"food_id": 173468, "food_name": "Sal", "qty": 0, "unit": "p:a gusto|0", "grams": 0, "note": "Sal a gusto"}
+     ]},
+    {"name": "  ", "ingredients": []},
+    {"name": "Rara", "category": "Inventada", "servings": 0, "ingredients": []}
+  ]
+}''';
+
+    test('lee alimentos, recetas e ingredientes válidos', () {
+      final p = parseRecipePack(pack);
+      expect(p.title, 'Prueba');
+      expect(p.foods.single.nutrients['energy_kcal'], 20);
+      expect(p.recipes.length, 2);
+      final b = p.recipes.first;
+      expect(b.recipe.servings, 10);
+      expect(b.recipe.category, 'Merienda / snack');
+      expect(b.ingredients.length, 3);
+      expect(b.ingredients[1].foodKey, 'c:eri');
+    });
+
+    test('categoría desconocida y porciones inválidas', () {
+      final r = parseRecipePack(pack).recipes.last.recipe;
+      expect(r.category, 'Otra');
+      expect(r.servings, 1);
+    });
+
+    test('rechaza un respaldo o un JSON cualquiera', () {
+      expect(() => parseRecipePack('{"app": "recetas_app", "format": 1}'),
+          throwsFormatException);
+      expect(() => parseRecipePack('[1, 2]'), throwsFormatException);
+    });
+
+    test('nombres repetidos sin importar tildes ni mayúsculas', () {
+      expect(recipeNameKey(' Budín de Limón '), recipeNameKey('budin de limon'));
+    });
+
+    test('cantidad "a gusto"', () {
+      expect(qtyLabel(0, 'p:a gusto|0'), 'a gusto');
+      expect(qtyLabel(2, 'p:diente|4'), '2 diente');
+      expect(qtyLabel(0.5, 'taza'), '0,5 taza');
     });
   });
 }

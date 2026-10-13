@@ -8,6 +8,7 @@ import '../../domain/targets.dart';
 import '../../domain/text.dart';
 import '../../data/updater.dart';
 import 'custom_food_page.dart';
+import 'import_pack.dart';
 import 'update_page.dart';
 
 class SettingsPage extends StatelessWidget {
@@ -38,6 +39,12 @@ class SettingsPage extends StatelessWidget {
             title: const Text('Alimentos propios'),
             subtitle: const Text('Productos cargados desde la etiqueta'),
             onTap: () => go(const CustomFoodsPage()),
+          ),
+          ListTile(
+            leading: const Icon(Icons.library_add_outlined),
+            title: const Text('Importar recetario'),
+            subtitle: const Text('Agregar recetas desde un archivo .json'),
+            onTap: () => importRecipePackFlow(context),
           ),
           ListTile(
             leading: const Icon(Icons.backup_outlined),

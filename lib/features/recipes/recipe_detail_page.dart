@@ -235,9 +235,8 @@ class _RecipeDetailPageState extends State<RecipeDetailPage> {
 
   Widget _ingredientRow(RecipeIngredient ing, double factor, double kcal) {
     final qty = ing.qty * factor;
-    final unit = unitLabel(ing.unit);
     final grams = ing.grams * factor;
-    final showGrams = ing.unit != 'g';
+    final showGrams = ing.unit != 'g' && ing.grams > 0;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
@@ -245,7 +244,7 @@ class _RecipeDetailPageState extends State<RecipeDetailPage> {
         children: [
           SizedBox(
             width: 110,
-            child: Text('${fmtNum(qty, decimals: 2)} $unit'),
+            child: Text(qtyLabel(qty, ing.unit)),
           ),
           Expanded(
             child: Column(

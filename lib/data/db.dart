@@ -31,12 +31,18 @@ class AppDb {
 
     user = await openDatabase(
       p.join(dir, 'user.db'),
-      version: 1,
+      version: 2,
       onConfigure: (db) async {
         await db.execute('PRAGMA foreign_keys = ON');
       },
       onCreate: (db, version) async {
         await _createUserSchema(db);
+      },
+      onUpgrade: (db, oldVersion, newVersion) async {
+        if (oldVersion < 2) {
+          await db.execute(
+              "ALTER TABLE recipe ADD COLUMN category TEXT NOT NULL DEFAULT 'Otra'");
+        }
       },
     );
     _opened = true;
@@ -72,6 +78,7 @@ class AppDb {
         cook_min INTEGER,
         instructions TEXT NOT NULL DEFAULT '',
         tags TEXT NOT NULL DEFAULT '',
+        category TEXT NOT NULL DEFAULT 'Otra',
         created_at INTEGER,
         updated_at INTEGER
       )''',

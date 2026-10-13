@@ -16,6 +16,8 @@ class RecipesPage extends StatefulWidget {
 
 class _RecipesPageState extends State<RecipesPage> {
   String _query = '';
+  String? _category;
+  List<String> _usedCategories = [];
   List<Recipe> _recipes = [];
   bool _loaded = false;
 
@@ -26,10 +28,14 @@ class _RecipesPageState extends State<RecipesPage> {
   }
 
   Future<void> _load() async {
-    final r = await Repo.instance.recipes(query: _query);
+    final r = await Repo.instance.recipes(query: _query, category: _category);
+    final all = await Repo.instance.recipes();
+    final used = all.map((e) => e.category).toSet();
     if (!mounted) return;
     setState(() {
       _recipes = r;
+      _usedCategories =
+          recipeCategories.where(used.contains).toList();
       _loaded = true;
     });
   }
@@ -73,7 +79,7 @@ class _RecipesPageState extends State<RecipesPage> {
             child: TextField(
               decoration: const InputDecoration(
                 prefixIcon: Icon(Icons.search),
-                hintText: 'Buscar por nombre o etiqueta',
+                hintText: 'Buscar por nombre, etiqueta o categoría',
               ),
               onChanged: (v) {
                 _query = v;
@@ -81,13 +87,27 @@ class _RecipesPageState extends State<RecipesPage> {
               },
             ),
           ),
+          if (_usedCategories.length > 1 || _category != null)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 4),
+              child: CategoryFilter(
+                categories: _usedCategories,
+                selected: _category,
+                onChanged: (c) {
+                  _category = c;
+                  _load();
+                },
+              ),
+            ),
           Expanded(
             child: !_loaded
                 ? const Center(child: CircularProgressIndicator())
                 : _recipes.isEmpty
-                    ? const EmptyState(
+                    ? EmptyState(
                         icon: Icons.menu_book_outlined,
-                        text: 'Todavía no hay recetas. Tocá "Nueva receta" para cargar la primera.',
+                        text: (_category != null || _query.trim().isNotEmpty)
+                            ? 'No hay recetas que coincidan con el filtro.'
+                            : 'Todavía no hay recetas. Tocá "Nueva receta" para cargar la primera.',
                       )
                     : ListView.builder(
                         padding: const EdgeInsets.only(bottom: 88),
@@ -96,6 +116,7 @@ class _RecipesPageState extends State<RecipesPage> {
                           final r = _recipes[i];
                           final time = (r.prepMin ?? 0) + (r.cookMin ?? 0);
                           final parts = <String>[
+                            r.category,
                             '${fmtNum(r.servings)} porciones',
                             if (time > 0) '$time min',
                             if (r.tags.trim().isNotEmpty) r.tags,

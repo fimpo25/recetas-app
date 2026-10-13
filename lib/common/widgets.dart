@@ -116,3 +116,46 @@ class EmptyState extends StatelessWidget {
     );
   }
 }
+
+/// Fila deslizable de filtros por categoría. `null` = todas.
+class CategoryFilter extends StatelessWidget {
+  final List<String> categories;
+  final String? selected;
+  final ValueChanged<String?> onChanged;
+
+  const CategoryFilter({
+    super.key,
+    required this.categories,
+    required this.selected,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      child: Row(
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(right: 6),
+            child: ChoiceChip(
+              label: const Text('Todas'),
+              selected: selected == null,
+              onSelected: (_) => onChanged(null),
+            ),
+          ),
+          for (final c in categories)
+            Padding(
+              padding: const EdgeInsets.only(right: 6),
+              child: ChoiceChip(
+                label: Text(c),
+                selected: selected == c,
+                onSelected: (_) => onChanged(selected == c ? null : c),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}

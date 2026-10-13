@@ -90,6 +90,7 @@ class Recipe {
   int? cookMin;
   String instructions;
   String tags;
+  String category;
   List<RecipeIngredient> ingredients;
 
   Recipe({
@@ -100,6 +101,7 @@ class Recipe {
     this.cookMin,
     this.instructions = '',
     this.tags = '',
+    this.category = defaultRecipeCategory,
     List<RecipeIngredient>? ingredients,
   }) : ingredients = ingredients ?? [];
 
@@ -110,6 +112,7 @@ class Recipe {
         'cook_min': cookMin,
         'instructions': instructions,
         'tags': tags,
+        'category': category,
         'ingredients': ingredients.map((e) => e.toJson()).toList(),
       };
 
@@ -120,6 +123,7 @@ class Recipe {
         cookMin: (j['cook_min'] as num?)?.toInt(),
         instructions: (j['instructions'] as String?) ?? '',
         tags: (j['tags'] as String?) ?? '',
+        category: (j['category'] as String?) ?? defaultRecipeCategory,
         ingredients: ((j['ingredients'] as List?) ?? [])
             .map((e) => RecipeIngredient.fromJson(e as Map<String, dynamic>))
             .toList(),
@@ -145,6 +149,24 @@ class PlanEntry {
     required this.servings,
   });
 }
+
+/// Categorías de receta, en el orden en que se muestran.
+const List<String> recipeCategories = [
+  'Desayuno',
+  'Entrada',
+  'Ensalada',
+  'Sopa',
+  'Principal',
+  'Guarnición',
+  'Postre',
+  'Merienda / snack',
+  'Panadería',
+  'Salsa',
+  'Bebida',
+  'Otra',
+];
+
+const String defaultRecipeCategory = 'Otra';
 
 const List<String> mealSlots = [
   'desayuno',

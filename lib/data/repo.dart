@@ -229,7 +229,13 @@ class Repo {
 
   // ---------------------------------------------------------------- recetas
 
-  Future<List<Recipe>> recipes({String query = ''}) async {
+  static String _category(Object? v) {
+    final c = (v as String?) ?? '';
+    return recipeCategories.contains(c) ? c : defaultRecipeCategory;
+  }
+
+  /// Recetas filtradas por texto (nombre, etiquetas, categoría) y categoría.
+  Future<List<Recipe>> recipes({String query = '', String? category}) async {
     final rows = await _user.query('recipe', orderBy: 'name COLLATE NOCASE');
     final q = normalize(query.trim());
     final list = rows
@@ -241,11 +247,14 @@ class Repo {
               cookMin: _iN(r['cook_min']),
               instructions: _s(r['instructions']),
               tags: _s(r['tags']),
+              category: _category(r['category']),
             ))
         .toList();
-    if (q.isEmpty) return list;
     return list
-        .where((r) => normalize('${r.name} ${r.tags}').contains(q))
+        .where((r) => category == null || r.category == category)
+        .where((r) =>
+            q.isEmpty ||
+            normalize('${r.name} ${r.tags} ${r.category}').contains(q))
         .toList();
   }
 
@@ -263,6 +272,7 @@ class Repo {
       cookMin: _iN(r['cook_min']),
       instructions: _s(r['instructions']),
       tags: _s(r['tags']),
+      category: _category(r['category']),
       ingredients: ing
           .map((x) => RecipeIngredient(
                 id: _i(x['id']),
@@ -287,6 +297,7 @@ class Repo {
         'cook_min': r.cookMin,
         'instructions': r.instructions,
         'tags': r.tags,
+        'category': r.category,
         'updated_at': now,
       };
       int id;

@@ -186,9 +186,8 @@ class _RecipeDetailPageState extends State<RecipeDetailPage> {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          if (time.isNotEmpty || r.tags.isNotEmpty)
-            Text([...time, if (r.tags.isNotEmpty) r.tags].join(' · '),
-                style: theme.textTheme.bodySmall),
+          Text([r.category, ...time, if (r.tags.isNotEmpty) r.tags].join(' · '),
+              style: theme.textTheme.bodySmall),
           const SizedBox(height: 8),
           Row(
             children: [

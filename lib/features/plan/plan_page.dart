@@ -283,12 +283,18 @@ class _RecipePickerSheet extends StatefulWidget {
 
 class _RecipePickerSheetState extends State<_RecipePickerSheet> {
   String _q = '';
+  String? _category;
 
   @override
   Widget build(BuildContext context) {
     final q = normalize(_q);
+    final used = widget.recipes.map((r) => r.category).toSet();
+    final cats = recipeCategories.where(used.contains).toList();
     final list = widget.recipes
-        .where((r) => q.isEmpty || normalize('${r.name} ${r.tags}').contains(q))
+        .where((r) => _category == null || r.category == _category)
+        .where((r) =>
+            q.isEmpty ||
+            normalize('${r.name} ${r.tags} ${r.category}').contains(q))
         .toList();
     return SafeArea(
       child: SizedBox(
@@ -306,12 +312,21 @@ class _RecipePickerSheetState extends State<_RecipePickerSheet> {
                 onChanged: (v) => setState(() => _q = v),
               ),
             ),
+            if (cats.length > 1)
+              CategoryFilter(
+                categories: cats,
+                selected: _category,
+                onChanged: (c) => setState(() => _category = c),
+              ),
             Expanded(
               child: ListView.builder(
                 itemCount: list.length,
                 itemBuilder: (context, i) => ListTile(
                   title: Text(list[i].name),
-                  subtitle: list[i].tags.isEmpty ? null : Text(list[i].tags),
+                  subtitle: Text([
+                    list[i].category,
+                    if (list[i].tags.isNotEmpty) list[i].tags,
+                  ].join(' · ')),
                   onTap: () => Navigator.pop(context, list[i]),
                 ),
               ),

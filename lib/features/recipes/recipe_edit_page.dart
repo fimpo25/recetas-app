@@ -27,6 +27,7 @@ class _RecipeEditPageState extends State<RecipeEditPage> {
   late final TextEditingController _instructions;
   late List<RecipeIngredient> _ingredients;
   bool _saving = false;
+  late String _category;
 
   @override
   void initState() {
@@ -37,6 +38,7 @@ class _RecipeEditPageState extends State<RecipeEditPage> {
     _prep = TextEditingController(text: r?.prepMin?.toString() ?? '');
     _cook = TextEditingController(text: r?.cookMin?.toString() ?? '');
     _tags = TextEditingController(text: r?.tags ?? '');
+    _category = r?.category ?? defaultRecipeCategory;
     _instructions = TextEditingController(text: r?.instructions ?? '');
     _ingredients = r == null
         ? []
@@ -94,6 +96,7 @@ class _RecipeEditPageState extends State<RecipeEditPage> {
       prepMin: int.tryParse(_prep.text.trim()),
       cookMin: int.tryParse(_cook.text.trim()),
       tags: _tags.text.trim(),
+      category: _category,
       instructions: _instructions.text.trim(),
       ingredients: _ingredients,
     );
@@ -160,6 +163,15 @@ class _RecipeEditPageState extends State<RecipeEditPage> {
                   ),
                 ),
               ],
+            ),
+            DropdownButtonFormField<String>(
+              initialValue: _category,
+              decoration: const InputDecoration(labelText: 'Categoría'),
+              items: [
+                for (final c in recipeCategories)
+                  DropdownMenuItem(value: c, child: Text(c)),
+              ],
+              onChanged: (v) => setState(() => _category = v ?? _category),
             ),
             TextFormField(
               controller: _tags,

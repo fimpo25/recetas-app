@@ -5,6 +5,8 @@
 ///   "app": "recetas_app", "kind": "recipe_pack", "format": 1, "title": "...",
 ///   "foods": [ {"key": "c:x", "name": "...", "category": "...", "density": 1.0,
 ///               "nutrients": {"energy_kcal": 20}} ],
+///   "targets": {"energy_kcal": 2000, "protein_g": 150},
+///   "plan": [ {"day": 0, "slot": "desayuno", "recipe": "Nombre", "servings": 1} ],
 ///   "recipes": [ {"name": "...", "category": "...", "servings": 4, "prep_min": 30,
 ///                 "instructions": "...", "tags": "...",
 ///                 "ingredients": [ {"food_id": 123 | "food_key": "c:x", "food_name": "...",
@@ -59,11 +61,33 @@ class PackRecipe {
   const PackRecipe(this.recipe, this.ingredients);
 }
 
+/// Comida de un plan: [day] cuenta desde el primer día del plan (0, 1, 2...).
+class PackPlanEntry {
+  final int day;
+  final String slot;
+  final String recipe;
+  final double servings;
+  const PackPlanEntry(this.day, this.slot, this.recipe, this.servings);
+}
+
 class RecipePack {
   final String title;
   final List<PackFood> foods;
   final List<PackRecipe> recipes;
-  const RecipePack(this.title, this.foods, this.recipes);
+  final List<PackPlanEntry> plan;
+  final Map<String, double> targets; // metas diarias sugeridas por el plan
+  const RecipePack(this.title, this.foods, this.recipes,
+      [this.plan = const [], this.targets = const {}]);
+
+  /// Cantidad de días que abarca el plan.
+  int get planDays =>
+      plan.isEmpty ? 0 : plan.map((e) => e.day).reduce((a, b) => a > b ? a : b) + 1;
+}
+
+/// Ubicación (semana, día 0..6) de cada día del plan a partir de [start].
+({String weekStart, int day}) planSlotDate(DateTime start, int offset) {
+  final d = addDays(start, offset);
+  return (weekStart: weekStartOf(d), day: d.weekday - 1);
 }
 
 double _d(Object? v, [double def = 0]) =>
@@ -124,7 +148,25 @@ RecipePack parseRecipePack(String json) {
     }
     recipes.add(PackRecipe(recipe, ings));
   }
-  return RecipePack((data['title'] as String?) ?? 'Recetario', foods, recipes);
+  final plan = <PackPlanEntry>[];
+  for (final e in (data['plan'] as List?) ?? const []) {
+    final m = e as Map<String, dynamic>;
+    final day = (m['day'] as num?)?.toInt() ?? -1;
+    final slot = (m['slot'] as String?) ?? '';
+    final name = ((m['recipe'] as String?) ?? '').trim();
+    final serv = _d(m['servings'], 1);
+    if (day < 0 || day > 60 || !mealSlots.contains(slot) || name.isEmpty || serv <= 0) {
+      continue;
+    }
+    plan.add(PackPlanEntry(day, slot, name, serv));
+  }
+  final targets = <String, double>{};
+  ((data['targets'] as Map?) ?? const {}).forEach((k, v) {
+    final x = _d(v, -1);
+    if (x > 0) targets['$k'] = x;
+  });
+  return RecipePack(
+      (data['title'] as String?) ?? 'Recetario', foods, recipes, plan, targets);
 }
 
 /// Clave para detectar recetas repetidas (sin tildes ni mayúsculas).

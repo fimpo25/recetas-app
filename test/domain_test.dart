@@ -176,6 +176,30 @@ void main() {
       expect(recipeNameKey(' Budín de Limón '), recipeNameKey('budin de limon'));
     });
 
+    test('plan y metas del recetario', () {
+      final p = parseRecipePack('''
+{"app": "recetas_app", "kind": "recipe_pack", "format": 1, "recipes": [],
+ "targets": {"energy_kcal": 2000, "protein_g": 150, "x": -1},
+ "plan": [
+   {"day": 0, "slot": "desayuno", "recipe": "Huevos", "servings": 1.5},
+   {"day": 2, "slot": "cena", "recipe": "Ensalada"},
+   {"day": 1, "slot": "brunch", "recipe": "Otra"},
+   {"day": 1, "slot": "cena", "recipe": " "}
+ ]}''');
+      expect(p.plan.length, 2);
+      expect(p.plan.first.servings, 1.5);
+      expect(p.plan.last.servings, 1);
+      expect(p.planDays, 3);
+      expect(p.targets, {'energy_kcal': 2000, 'protein_g': 150});
+    });
+
+    test('días del plan que cruzan de semana', () {
+      // sábado 17/10/2026: día 0 = sábado, día 2 = lunes de la semana siguiente
+      final sat = DateTime(2026, 10, 17);
+      expect(planSlotDate(sat, 0), (weekStart: '2026-10-12', day: 5));
+      expect(planSlotDate(sat, 2), (weekStart: '2026-10-19', day: 0));
+    });
+
     test('cantidad "a gusto"', () {
       expect(qtyLabel(0, 'p:a gusto|0'), 'a gusto');
       expect(qtyLabel(2, 'p:diente|4'), '2 diente');

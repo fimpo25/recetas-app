@@ -684,6 +684,46 @@ class Repo {
     return (added, skipped);
   }
 
+  /// Carga el plan de un recetario desde el día [start]. Si [replace] es
+  /// true, antes borra lo que haya en esos días. Devuelve (cargadas, faltantes):
+  /// las faltantes son comidas cuya receta no existe en la app.
+  Future<(int, int)> importPackPlan(RecipePack pack, DateTime start,
+      {bool replace = true}) async {
+    final ids = <String, int>{};
+    for (final r in await _user.query('recipe', columns: ['id', 'name'])) {
+      ids.putIfAbsent(recipeNameKey(_s(r['name'])), () => _i(r['id']));
+    }
+    var added = 0;
+    var missing = 0;
+    await _user.transaction((txn) async {
+      if (replace) {
+        for (var d = 0; d < pack.planDays; d++) {
+          final at = planSlotDate(start, d);
+          await txn.delete('plan_entry',
+              where: 'week_start = ? AND day = ?',
+              whereArgs: [at.weekStart, at.day]);
+        }
+      }
+      for (final e in pack.plan) {
+        final id = ids[recipeNameKey(e.recipe)];
+        if (id == null) {
+          missing++;
+          continue;
+        }
+        final at = planSlotDate(start, e.day);
+        await txn.insert('plan_entry', {
+          'week_start': at.weekStart,
+          'day': at.day,
+          'slot': e.slot,
+          'recipe_id': id,
+          'servings': e.servings,
+        });
+        added++;
+      }
+    });
+    return (added, missing);
+  }
+
   // ---------------------------------------------------------------- helpers
 
   static String _marks(int n) => List.filled(n, '?').join(',');

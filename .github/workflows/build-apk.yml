@@ -18,6 +18,8 @@ jobs:
     timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 15
 
       # ---------- base nutricional (USDA SR Legacy → SQLite)
       - uses: actions/setup-python@v5
@@ -110,7 +112,8 @@ jobs:
           rm -f dist/*.idsig
           ls -la dist
           {
-            git log -1 --format=%s
+            # novedad para el usuario: el último commit que no sea de mantenimiento del CI
+            git log -15 --format=%s | grep -v '^CI:' | head -1
             echo
             echo "Compilado desde ${{ github.sha }}."
             echo

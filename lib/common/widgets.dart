@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../domain/text.dart';
+import 'recipe_style.dart';
 
 void showSnack(BuildContext context, String msg) {
   ScaffoldMessenger.of(context)
@@ -149,6 +150,8 @@ class CategoryFilter extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.only(right: 6),
               child: ChoiceChip(
+                avatar: Icon(categoryStyle(c).icon,
+                    size: 18, color: categoryStyle(c).color),
                 label: Text(c),
                 selected: selected == c,
                 onSelected: (_) => onChanged(selected == c ? null : c),

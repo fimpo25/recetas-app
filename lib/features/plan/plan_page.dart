@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../common/recipe_style.dart';
 import '../../common/widgets.dart';
 import '../../data/repo.dart';
 import '../../domain/models.dart';
@@ -322,10 +323,12 @@ class _RecipePickerSheetState extends State<_RecipePickerSheet> {
               child: ListView.builder(
                 itemCount: list.length,
                 itemBuilder: (context, i) => ListTile(
-                  title: Text(list[i].name),
+                  leading: CategoryAvatar(list[i].category, size: 38),
+                  title: Text(list[i].name,
+                      maxLines: 2, overflow: TextOverflow.ellipsis),
                   subtitle: Text([
                     list[i].category,
-                    if (list[i].tags.isNotEmpty) list[i].tags,
+                    if (bookOf(list[i].tags) != null) bookOf(list[i].tags)!,
                   ].join(' · ')),
                   onTap: () => Navigator.pop(context, list[i]),
                 ),

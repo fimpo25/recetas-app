@@ -19,6 +19,15 @@ double _d(Object? v) => (v as num).toDouble();
 double? _dN(Object? v) => (v as num?)?.toDouble();
 String _s(Object? v) => (v as String?) ?? '';
 
+/// Valores por porción para mostrar en la lista de recetas.
+class RecipeSummary {
+  final double kcal;
+  final double protein;
+  final double carbs;
+  final double fat;
+  const RecipeSummary(this.kcal, this.protein, this.carbs, this.fat);
+}
+
 class Target {
   final double value;
   final bool upper;
@@ -34,6 +43,10 @@ class Repo {
   Database get _user => AppDb.instance.user;
 
   List<Nutrient>? _nutrients;
+  Map<int, RecipeSummary>? _summaries;
+
+  /// Invalida los datos resumidos de las recetas (después de cambios).
+  void _dirty() => _summaries = null;
 
   // ---------------------------------------------------------------- nutrientes
 
@@ -184,6 +197,7 @@ class Repo {
     required Map<int, double> values,
     List<Portion> portions = const [],
   }) async {
+    _dirty();
     return _user.transaction((txn) async {
       var foodId = id;
       if (foodId == null) {
@@ -289,6 +303,7 @@ class Repo {
   }
 
   Future<int> saveRecipe(Recipe r) async {
+    _dirty();
     final now = DateTime.now().millisecondsSinceEpoch;
     return _user.transaction((txn) async {
       final values = <String, Object?>{
@@ -329,6 +344,7 @@ class Repo {
   }
 
   Future<void> deleteRecipe(int id) async {
+    _dirty();
     await _user.delete('recipe', where: 'id = ?', whereArgs: [id]);
   }
 
@@ -359,6 +375,47 @@ class Repo {
             ))
         .toList();
     return sumIngredients(items, ns.map((n) => n.id));
+  }
+
+  /// kcal, proteínas, carbohidratos y grasas por porción de todas las
+  /// recetas, calculado en bloque para la lista (se guarda en memoria).
+  Future<Map<int, RecipeSummary>> recipeSummaries() async {
+    if (_summaries != null) return _summaries!;
+    final codes = <String, int>{};
+    for (final n in await nutrients()) {
+      codes[n.code] = n.id;
+    }
+    final kcalId = codes['energy_kcal'];
+    final protId = codes['protein_g'];
+    final carbId = codes['carbs_g'];
+    final fatId = codes['fat_g'];
+    final recipes = await _user.query('recipe', columns: ['id', 'servings']);
+    final rows = await _user.query('recipe_ingredient',
+        columns: ['recipe_id', 'food_id', 'grams']);
+    final ids = rows.map((r) => _i(r['food_id'])).toSet();
+    final values = await per100(ids);
+    final foods = await foodsByIds(ids);
+    final acc = <int, List<double>>{};
+    for (final r in rows) {
+      final fid = _i(r['food_id']);
+      final v = values[fid];
+      if (v == null) continue;
+      final g = _d(r['grams']) * (foods[fid]?.edible ?? 1.0) / 100.0;
+      final a = acc.putIfAbsent(_i(r['recipe_id']), () => [0, 0, 0, 0]);
+      a[0] += g * (v[kcalId] ?? 0);
+      a[1] += g * (v[protId] ?? 0);
+      a[2] += g * (v[carbId] ?? 0);
+      a[3] += g * (v[fatId] ?? 0);
+    }
+    final out = <int, RecipeSummary>{};
+    for (final r in recipes) {
+      final id = _i(r['id']);
+      final serv = _d(r['servings']);
+      final a = acc[id] ?? [0, 0, 0, 0];
+      final k = serv > 0 ? serv : 1.0;
+      out[id] = RecipeSummary(a[0] / k, a[1] / k, a[2] / k, a[3] / k);
+    }
+    return _summaries = out;
   }
 
   /// kcal aportadas por cada ingrediente de la receta completa.
@@ -582,6 +639,7 @@ class Repo {
 
   /// Reemplaza todos los datos del usuario por los del respaldo.
   Future<void> importJson(String json) async {
+    _dirty();
     final data = jsonDecode(json) as Map<String, dynamic>;
     if (data['app'] != 'recetas_app') {
       throw const FormatException('No es un respaldo de esta app');
@@ -603,6 +661,7 @@ class Repo {
   /// cuyo nombre ya existe se saltean y los alimentos propios se reutilizan
   /// por nombre. Devuelve (agregadas, salteadas).
   Future<(int, int)> importRecipePack(String json) async {
+    _dirty();
     final pack = parseRecipePack(json);
     final codeToId = {for (final n in await nutrients()) n.code: n.id};
     var added = 0;

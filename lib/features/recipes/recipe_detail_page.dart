@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../common/nutrition_table.dart';
+import '../../common/recipe_style.dart';
 import '../../common/widgets.dart';
 import '../../data/repo.dart';
 import '../../domain/models.dart';
@@ -163,7 +164,7 @@ class _RecipeDetailPageState extends State<RecipeDetailPage> {
     ];
     return Scaffold(
       appBar: AppBar(
-        title: Text(r.name),
+        title: Text(r.name, overflow: TextOverflow.ellipsis),
         actions: [
           IconButton(
               tooltip: 'Agregar al plan',
@@ -186,9 +187,10 @@ class _RecipeDetailPageState extends State<RecipeDetailPage> {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          Text([r.category, ...time, if (r.tags.isNotEmpty) r.tags].join(' · '),
-              style: theme.textTheme.bodySmall),
-          const SizedBox(height: 8),
+          _header(r, time),
+          const SizedBox(height: 12),
+          _macros(),
+          const SizedBox(height: 4),
           Row(
             children: [
               Text('Porciones', style: theme.textTheme.titleMedium),
@@ -230,6 +232,102 @@ class _RecipeDetailPageState extends State<RecipeDetailPage> {
           const SizedBox(height: 32),
         ],
       ),
+    );
+  }
+
+  Widget _header(Recipe r, List<String> time) {
+    final style = categoryStyle(r.category);
+    final scheme = Theme.of(context).colorScheme;
+    final book = bookOf(r.tags);
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: style.color.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: style.color.withValues(alpha: 0.35)),
+      ),
+      child: Row(
+        children: [
+          CategoryAvatar(r.category, size: 56),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(r.name,
+                    style: const TextStyle(
+                        fontSize: 19, fontWeight: FontWeight.w700)),
+                const SizedBox(height: 4),
+                Text(r.category,
+                    style: TextStyle(
+                        color: style.color, fontWeight: FontWeight.w600)),
+                if (book != null)
+                  Text(book,
+                      style: TextStyle(
+                          fontSize: 12.5, color: scheme.onSurfaceVariant)),
+                if (time.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  InfoPill(Icons.schedule, time.join(' · ')),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Cuatro recuadros con los macros por porción.
+  Widget _macros() {
+    double v(String code) {
+      for (final n in _nutrients) {
+        if (n.code == code) return _perServing.value(n.id);
+      }
+      return 0;
+    }
+
+    Widget tile(String label, String value, Color c) => Expanded(
+          child: Container(
+            margin: const EdgeInsets.symmetric(horizontal: 3),
+            padding: const EdgeInsets.symmetric(vertical: 10),
+            decoration: BoxDecoration(
+              color: c.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Column(
+              children: [
+                Text(value,
+                    style: TextStyle(
+                        fontSize: 17, fontWeight: FontWeight.w700, color: c)),
+                const SizedBox(height: 2),
+                Text(label, style: const TextStyle(fontSize: 11.5)),
+              ],
+            ),
+          ),
+        );
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(left: 4, bottom: 6),
+          child: Text('Por porción',
+              style: TextStyle(
+                  fontSize: 12.5,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant)),
+        ),
+        Row(
+          children: [
+            tile('kcal', fmtNum(v('energy_kcal'), decimals: 0),
+                const Color(0xFFFFB74D)),
+            tile('proteínas', '${fmtNum(v('protein_g'), decimals: 0)} g',
+                const Color(0xFF81C784)),
+            tile('carbohidr.', '${fmtNum(v('carbs_g'), decimals: 0)} g',
+                const Color(0xFF64B5F6)),
+            tile('grasas', '${fmtNum(v('fat_g'), decimals: 0)} g',
+                const Color(0xFFF48FB1)),
+          ],
+        ),
+      ],
     );
   }
 

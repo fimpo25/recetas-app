@@ -31,9 +31,18 @@ jobs:
           key: usda-sr-legacy-2018-04
 
       - name: Generar nutrition.db
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           pip install pandas
-          python tools/build_nutrition_db.py
+          if ! python tools/build_nutrition_db.py; then
+            # Si la descarga del USDA falla, se reutiliza la base de la última versión publicada
+            echo "::warning::No se pudo generar nutrition.db; se toma de la última versión publicada"
+            mkdir -p /tmp/prev assets/db
+            gh release download --repo "$GITHUB_REPOSITORY" --pattern 'recetas-arm64.apk' --dir /tmp/prev
+            unzip -o -j /tmp/prev/recetas-arm64.apk assets/flutter_assets/assets/db/nutrition.db -d assets/db
+          fi
+          ls -la assets/db
 
       # ---------- Flutter
       - uses: actions/setup-java@v5

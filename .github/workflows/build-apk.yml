@@ -73,10 +73,27 @@ jobs:
         run: flutter pub get
 
       - name: Análisis estático
-        run: flutter analyze --no-fatal-infos --no-fatal-warnings
+        run: |
+          set +e
+          flutter analyze --no-fatal-infos --no-fatal-warnings > analyze.log 2>&1
+          code=$?
+          cat analyze.log
+          if [ $code -ne 0 ]; then
+            grep -E "^\s*error" analyze.log | head -40 | while read -r l; do echo "::error title=analyze::$l"; done
+            exit $code
+          fi
 
       - name: Tests del motor de cálculo
-        run: flutter test
+        run: |
+          set +e
+          flutter test > test.log 2>&1
+          code=$?
+          cat test.log
+          if [ $code -ne 0 ]; then
+            msg=$(grep -aE "Expected|Actual|Error|error|FAILED|\[E\]|\.dart:[0-9]+" test.log | head -50 | sed 's/%/%25/g' | awk '{printf "%s%%0A", $0}')
+            echo "::error title=flutter test::${msg}"
+            exit $code
+          fi
 
       - name: Compilar APK
         shell: bash

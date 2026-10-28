@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../data/photo_store.dart';
+
 /// Ícono y color de cada categoría, para reconocer las recetas de un vistazo.
 class CategoryStyle {
   final IconData icon;
@@ -100,6 +102,35 @@ class InfoPill extends StatelessWidget {
         const SizedBox(width: 3),
         Text(text, style: TextStyle(fontSize: 12.5, color: c)),
       ],
+    );
+  }
+}
+
+/// Miniatura de la receta: su foto si tiene, si no el ícono de la categoría.
+class RecipeThumb extends StatelessWidget {
+  final String category;
+  final String? photo;
+  final double size;
+  const RecipeThumb(
+      {super.key, required this.category, this.photo, this.size = 56});
+
+  @override
+  Widget build(BuildContext context) {
+    final f = PhotoStore.file(photo);
+    final fallback = CategoryAvatar(category, size: size);
+    if (f == null) return fallback;
+    final px = (size * 2 * MediaQuery.of(context).devicePixelRatio).round();
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(size * 0.22),
+      child: Image.file(
+        f,
+        width: size,
+        height: size,
+        fit: BoxFit.cover,
+        cacheWidth: px,
+        gaplessPlayback: true,
+        errorBuilder: (_, __, ___) => fallback,
+      ),
     );
   }
 }

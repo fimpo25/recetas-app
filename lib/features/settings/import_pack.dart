@@ -86,7 +86,7 @@ Future<bool> importRecipePackFlow(BuildContext context) async {
       ),
     ),
   );
-  final (int, int) res;
+  final (int, int, int) res;
   try {
     res = await Repo.instance.importRecipePack(text);
   } catch (e) {
@@ -96,15 +96,16 @@ Future<bool> importRecipePackFlow(BuildContext context) async {
     }
     return false;
   }
-  final (added, skipped) = res;
-  if (!context.mounted) return added > 0;
+  final (added, skipped, photos) = res;
+  if (!context.mounted) return added > 0 || photos > 0;
   Navigator.of(context, rootNavigator: true).pop();
-  final msg = skipped == 0
+  var msg = skipped == 0
       ? 'Se agregaron $added recetas.'
       : 'Se agregaron $added recetas ($skipped ya estaban).';
+  if (photos > 0) msg += ' $photos fotos guardadas.';
   if (pack.plan.isEmpty) {
     showSnack(context, msg);
-    return added > 0;
+    return added > 0 || photos > 0;
   }
   String? planMsg;
   try {

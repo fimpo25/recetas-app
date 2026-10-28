@@ -8,6 +8,7 @@
 ///   "targets": {"energy_kcal": 2000, "protein_g": 150},
 ///   "plan": [ {"day": 0, "slot": "desayuno", "recipe": "Nombre", "servings": 1} ],
 ///   "recipes": [ {"name": "...", "category": "...", "servings": 4, "prep_min": 30,
+///                 "image": "<jpeg en base64, opcional>",
 ///                 "instructions": "...", "tags": "...",
 ///                 "ingredients": [ {"food_id": 123 | "food_key": "c:x", "food_name": "...",
 ///                                   "qty": 1, "unit": "taza", "grams": 120, "note": "..."} ]} ]
@@ -58,7 +59,9 @@ class PackIngredient {
 class PackRecipe {
   final Recipe recipe; // sin ingredientes
   final List<PackIngredient> ingredients;
-  const PackRecipe(this.recipe, this.ingredients);
+  /// Foto en JPEG codificada en base64 (campo "image"), o null.
+  final String? image;
+  const PackRecipe(this.recipe, this.ingredients, [this.image]);
 }
 
 /// Comida de un plan: [day] cuenta desde el primer día del plan (0, 1, 2...).
@@ -146,7 +149,9 @@ RecipePack parseRecipePack(String json) {
         note: (x['note'] as String?) ?? '',
       ));
     }
-    recipes.add(PackRecipe(recipe, ings));
+    final img = m['image'];
+    recipes.add(PackRecipe(
+        recipe, ings, img is String && img.length > 100 ? img : null));
   }
   final plan = <PackPlanEntry>[];
   for (final e in (data['plan'] as List?) ?? const []) {

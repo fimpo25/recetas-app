@@ -4,6 +4,8 @@ import 'package:flutter/services.dart';
 import 'package:path/path.dart' as p;
 import 'package:sqflite/sqflite.dart';
 
+import 'photo_store.dart';
+
 /// Abre la base nutricional (precargada, solo lectura) y la base de usuario.
 class AppDb {
   AppDb._();
@@ -31,7 +33,7 @@ class AppDb {
 
     user = await openDatabase(
       p.join(dir, 'user.db'),
-      version: 2,
+      version: 3,
       onConfigure: (db) async {
         await db.execute('PRAGMA foreign_keys = ON');
       },
@@ -43,8 +45,12 @@ class AppDb {
           await db.execute(
               "ALTER TABLE recipe ADD COLUMN category TEXT NOT NULL DEFAULT 'Otra'");
         }
+        if (oldVersion < 3) {
+          await db.execute('ALTER TABLE recipe ADD COLUMN photo TEXT');
+        }
       },
     );
+    await PhotoStore.init();
     _opened = true;
   }
 
@@ -79,6 +85,7 @@ class AppDb {
         instructions TEXT NOT NULL DEFAULT '',
         tags TEXT NOT NULL DEFAULT '',
         category TEXT NOT NULL DEFAULT 'Otra',
+        photo TEXT,
         created_at INTEGER,
         updated_at INTEGER
       )''',

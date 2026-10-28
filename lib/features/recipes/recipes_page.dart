@@ -400,7 +400,7 @@ class _RecipeCard extends StatelessWidget {
                   padding: const EdgeInsets.fromLTRB(12, 10, 8, 10),
                   child: Row(
                     children: [
-                      CategoryAvatar(r.category),
+                      RecipeThumb(category: r.category, photo: r.photo, size: 64),
                       const SizedBox(width: 12),
                       Expanded(
                         child: Column(

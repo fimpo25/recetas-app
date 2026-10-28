@@ -9,6 +9,7 @@ import '../domain/shopping_list.dart';
 import '../domain/targets.dart';
 import '../domain/text.dart';
 import 'db.dart';
+import 'photo_store.dart';
 
 /// Los alimentos propios usan IDs desde este valor para no chocar con la base.
 const int customFoodBaseId = 1000000;
@@ -263,6 +264,7 @@ class Repo {
               instructions: _s(r['instructions']),
               tags: _s(r['tags']),
               category: _category(r['category']),
+              photo: r['photo'] as String?,
             ))
         .toList();
     return list
@@ -288,6 +290,7 @@ class Repo {
       instructions: _s(r['instructions']),
       tags: _s(r['tags']),
       category: _category(r['category']),
+      photo: r['photo'] as String?,
       ingredients: ing
           .map((x) => RecipeIngredient(
                 id: _i(x['id']),
@@ -345,6 +348,9 @@ class Repo {
 
   Future<void> deleteRecipe(int id) async {
     _dirty();
+    final rows = await _user.query('recipe',
+        columns: ['photo'], where: 'id = ?', whereArgs: [id]);
+    if (rows.isNotEmpty) await PhotoStore.delete(rows.first['photo'] as String?);
     await _user.delete('recipe', where: 'id = ?', whereArgs: [id]);
   }
 
@@ -356,7 +362,26 @@ class Repo {
     for (final i in r.ingredients) {
       i.id = null;
     }
-    return saveRecipe(r);
+    final photo = r.photo;
+    final newId = await saveRecipe(r);
+    if (photo != null) {
+      final bytes = await PhotoStore.read(photo);
+      if (bytes != null) await setRecipePhoto(newId, bytes);
+    }
+    return newId;
+  }
+
+  /// Guarda la foto de una receta (reemplaza la anterior). [bytes] null = quitar.
+  Future<String?> setRecipePhoto(int recipeId, List<int>? bytes) async {
+    final rows = await _user.query('recipe',
+        columns: ['photo'], where: 'id = ?', whereArgs: [recipeId]);
+    if (rows.isEmpty) return null;
+    final old = rows.first['photo'] as String?;
+    final name = bytes == null ? null : await PhotoStore.save(recipeId, bytes);
+    await _user.update('recipe', {'photo': name},
+        where: 'id = ?', whereArgs: [recipeId]);
+    if (old != null && old != name) await PhotoStore.delete(old);
+    return name;
   }
 
   // ---------------------------------------------------------------- nutrición
@@ -506,6 +531,30 @@ class Repo {
       }
     });
     return entries.length;
+  }
+
+  /// Guarda un plan armado automáticamente. Con [replace] primero vacía
+  /// esos días.
+  Future<void> saveAutoPlan(String weekStart, List<int> days,
+      List<({int day, String slot, int recipeId, double servings})> meals,
+      {bool replace = true}) async {
+    await _user.transaction((txn) async {
+      if (replace) {
+        for (final d in days) {
+          await txn.delete('plan_entry',
+              where: 'week_start = ? AND day = ?', whereArgs: [weekStart, d]);
+        }
+      }
+      for (final m in meals) {
+        await txn.insert('plan_entry', {
+          'week_start': weekStart,
+          'day': m.day,
+          'slot': m.slot,
+          'recipe_id': m.recipeId,
+          'servings': m.servings,
+        });
+      }
+    });
   }
 
   Future<void> clearWeek(String weekStart) async {
@@ -659,13 +708,16 @@ class Repo {
 
   /// Agrega las recetas de un recetario (.json). No borra nada: las recetas
   /// cuyo nombre ya existe se saltean y los alimentos propios se reutilizan
-  /// por nombre. Devuelve (agregadas, salteadas).
-  Future<(int, int)> importRecipePack(String json) async {
+  /// por nombre. Las fotos del recetario se guardan en las recetas nuevas y
+  /// también en las existentes que todavía no tengan foto.
+  /// Devuelve (agregadas, salteadas, fotos guardadas).
+  Future<(int, int, int)> importRecipePack(String json) async {
     _dirty();
     final pack = parseRecipePack(json);
     final codeToId = {for (final n in await nutrients()) n.code: n.id};
     var added = 0;
     var skipped = 0;
+    var photos = 0;
     await _user.transaction((txn) async {
       // alimentos propios del paquete
       final keyToId = <String, int>{};
@@ -701,14 +753,32 @@ class Repo {
         byName[recipeNameKey(f.name)] = id;
       }
       // recetas
-      final names = (await txn.query('recipe', columns: ['name']))
-          .map((r) => recipeNameKey(_s(r['name'])))
-          .toSet();
+      final existingRecipes =
+          await txn.query('recipe', columns: ['id', 'name', 'photo']);
+      final names = existingRecipes.map((r) => recipeNameKey(_s(r['name']))).toSet();
+      final withoutPhoto = {
+        for (final r in existingRecipes)
+          if (r['photo'] == null) recipeNameKey(_s(r['name'])): _i(r['id'])
+      };
+      Future<void> attach(int rid, String b64) async {
+        try {
+          final name = await PhotoStore.save(rid, base64Decode(b64));
+          await txn.update('recipe', {'photo': name},
+              where: 'id = ?', whereArgs: [rid]);
+          photos++;
+        } catch (_) {
+          // una foto dañada no frena la importación
+        }
+      }
+
       final now = DateTime.now().millisecondsSinceEpoch;
       for (final pr in pack.recipes) {
         final r = pr.recipe;
-        if (!names.add(recipeNameKey(r.name))) {
+        final key = recipeNameKey(r.name);
+        if (!names.add(key)) {
           skipped++;
+          final rid = withoutPhoto.remove(key);
+          if (rid != null && pr.image != null) await attach(rid, pr.image!);
           continue;
         }
         final rid = await txn.insert('recipe', {
@@ -737,10 +807,11 @@ class Repo {
             'sort_order': order++,
           });
         }
+        if (pr.image != null) await attach(rid, pr.image!);
         added++;
       }
     });
-    return (added, skipped);
+    return (added, skipped, photos);
   }
 
   /// Carga el plan de un recetario desde el día [start]. Si [replace] es

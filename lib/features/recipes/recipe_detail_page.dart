@@ -1,4 +1,7 @@
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+
+import '../../data/photo_store.dart';
 
 import '../../common/nutrition_table.dart';
 import '../../common/recipe_style.dart';
@@ -70,6 +73,24 @@ class _RecipeDetailPageState extends State<RecipeDetailPage> {
     if (!ok) return;
     await Repo.instance.deleteRecipe(_recipe!.id!);
     if (mounted) Navigator.pop(context);
+  }
+
+  Future<void> _pickPhoto() async {
+    try {
+      final res = await FilePicker.platform
+          .pickFiles(type: FileType.image, withData: true);
+      final bytes = res?.files.single.bytes;
+      if (bytes == null) return;
+      await Repo.instance.setRecipePhoto(_recipe!.id!, bytes);
+      await _load();
+    } catch (e) {
+      if (mounted) showSnack(context, 'No se pudo cargar la foto: $e');
+    }
+  }
+
+  Future<void> _removePhoto() async {
+    await Repo.instance.setRecipePhoto(_recipe!.id!, null);
+    await _load();
   }
 
   Future<void> _duplicate() async {
@@ -176,10 +197,17 @@ class _RecipeDetailPageState extends State<RecipeDetailPage> {
             onSelected: (v) {
               if (v == 'dup') _duplicate();
               if (v == 'del') _delete();
+              if (v == 'photo') _pickPhoto();
+              if (v == 'nophoto') _removePhoto();
             },
-            itemBuilder: (_) => const [
-              PopupMenuItem(value: 'dup', child: Text('Duplicar')),
-              PopupMenuItem(value: 'del', child: Text('Borrar')),
+            itemBuilder: (_) => [
+              PopupMenuItem(
+                  value: 'photo',
+                  child: Text(r.photo == null ? 'Agregar foto' : 'Cambiar foto')),
+              if (r.photo != null)
+                const PopupMenuItem(value: 'nophoto', child: Text('Quitar foto')),
+              const PopupMenuItem(value: 'dup', child: Text('Duplicar')),
+              const PopupMenuItem(value: 'del', child: Text('Borrar')),
             ],
           ),
         ],
@@ -187,6 +215,21 @@ class _RecipeDetailPageState extends State<RecipeDetailPage> {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
+          if (PhotoStore.file(r.photo) != null) ...[
+            ClipRRect(
+              borderRadius: BorderRadius.circular(16),
+              child: AspectRatio(
+                aspectRatio: 16 / 10,
+                child: Image.file(
+                  PhotoStore.file(r.photo)!,
+                  fit: BoxFit.cover,
+                  cacheWidth: 1080,
+                  errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+          ],
           _header(r, time),
           const SizedBox(height: 12),
           _macros(),

@@ -91,6 +91,8 @@ class Recipe {
   String instructions;
   String tags;
   String category;
+  /// Archivo de la foto (dentro de la carpeta de fotos de la app) o null.
+  String? photo;
   List<RecipeIngredient> ingredients;
 
   Recipe({
@@ -102,6 +104,7 @@ class Recipe {
     this.instructions = '',
     this.tags = '',
     this.category = defaultRecipeCategory,
+    this.photo,
     List<RecipeIngredient>? ingredients,
   }) : ingredients = ingredients ?? [];
 

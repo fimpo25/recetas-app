@@ -7,6 +7,7 @@ import '../../domain/models.dart';
 import '../../domain/nutrition_calc.dart';
 import '../../domain/text.dart';
 import '../recipes/recipe_detail_page.dart';
+import 'auto_plan_page.dart';
 
 class PlanPage extends StatefulWidget {
   const PlanPage({super.key});
@@ -145,6 +146,17 @@ class _PlanPageState extends State<PlanPage> {
       appBar: AppBar(
         title: const Text('Plan semanal'),
         actions: [
+          IconButton(
+            tooltip: 'Armar plan automático',
+            icon: const Icon(Icons.auto_awesome),
+            onPressed: () async {
+              final saved = await Navigator.push<bool>(
+                context,
+                MaterialPageRoute(builder: (_) => AutoPlanPage(weekStart: _week)),
+              );
+              if (saved == true) _load();
+            },
+          ),
           PopupMenuButton<String>(
             onSelected: (v) {
               if (v == 'copy') _copyPrevious();
@@ -323,7 +335,8 @@ class _RecipePickerSheetState extends State<_RecipePickerSheet> {
               child: ListView.builder(
                 itemCount: list.length,
                 itemBuilder: (context, i) => ListTile(
-                  leading: CategoryAvatar(list[i].category, size: 38),
+                  leading: RecipeThumb(
+                      category: list[i].category, photo: list[i].photo, size: 44),
                   title: Text(list[i].name,
                       maxLines: 2, overflow: TextOverflow.ellipsis),
                   subtitle: Text([

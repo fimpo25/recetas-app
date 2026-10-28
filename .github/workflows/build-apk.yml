@@ -130,7 +130,7 @@ jobs:
           ls -la dist
           {
             # novedad para el usuario: el último commit que no sea de mantenimiento del CI
-            git log -15 --format=%s | grep -v '^CI:' | head -1
+            git log -15 --format=%s | grep -vE '^(CI|Tests):' | head -1
             echo
             echo "Compilado desde ${{ github.sha }}."
             echo

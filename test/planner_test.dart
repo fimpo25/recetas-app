@@ -10,7 +10,7 @@ void main() {
       PlanCandidate(100 + i, 'Plato $i', i.isEven ? 'Principal' : 'Ensalada',
           300 + i * 15.0, 35 + i * 1.5),
     for (var i = 0; i < 12; i++)
-      PlanCandidate(200 + i, 'Snack $i', 'Merienda / snack', 150 + i * 10.0, 5 + i),
+      PlanCandidate(200 + i, 'Snack $i', 'Merienda / snack', 150 + i * 10.0, 5.0 + i),
     const PlanCandidate(999, 'Sal', 'Salsa', 5, 0),
   ];
   const cfg = PlannerConfig(
